@@ -2,6 +2,9 @@ import itertools
 import random
 from typing import List
 from dataclasses import dataclass
+import numpy as np 
+from typing import Tuple 
+from numpy.typing import NDArray
 
 from aido_schemas import Context, FriendlyPose
 from dt_protocols import (
@@ -36,7 +39,7 @@ class CollisionChecker:
 @dataclass 
 class PlacedPrimitiveMatrix:
     primitive: PlacedPrimitive
-    transform: np.array
+    transform: NDArray
 
 
 def check_collision(
@@ -101,24 +104,58 @@ def check_circle(a: PlacedPrimitiveMatrix, b: PlacedPrimitiveMatrix) -> bool:
     dist = np.linalg.norm(pos_a - pos_b)
     return dist < (a.primitive.radius + b.primitive.radius)
 
+def transform_rect(input: Rectangle, transform: np.array) -> Tuple[NDArray, NDArray]:
+    min_h = np.array([input.xmin, input.ymin, 1.0])
+    max_h = np.array([input.xmax, input.ymax, 1.0]) 
+
+    min_w = transform @ min_h 
+    max_h = transform & max_h
+
+    return (min_w, max_w)
+
+
 def check_rectangle_circle(a: PlacedPrimitiveMatrix, b: PlacedPrimitiveMatrix):
     # transform the rectangle 
-    return true
+    (a_min, a_max) = transform_rect(a.primitive, a.transform)
+    c = np.array([b.transform[0,2], b.transform[1,2]])
 
+    closestX = (
+        a_min[0] if (c[0] < a_min[0]) else 
+        a_max[0] if c[0] > a_max[0] else
+        c[0])
 
+    closestY = (
+        a_min[1] if (c[1] < a_min[1]) else 
+        a_max[1] if c[1] > a_max[1] else
+        c[1])
+
+    dx = closestX - c[0]
+    dy = closestY - c[1]
+
+    dist_sq = dx*dx + dy*dy
+    return dist_sq <= (b.primitive.radius * b.primitive.radius)
+
+def check_rectangle_rectangle(a: PlacedPrimitiveMatrix, b: PlacedPrimitiveMatrix):
+    (a_min, a_max) = transform_rect(a.primitive, a.transform)
+    (b_min, b_max) = transform_rect(b.primitive, b.transform)
+
+    overlap_x = (a_min[0] <= b_max[0]) and (b_min[0] <= a_max[0])
+    overlap_y = (a_min[1] <= b_max[1]) and (b_min[0] <= a_max[1])
+    return overlap_x and overlap_y
 
 def check_collision_shape(a: PlacedPrimitiveMatrix, b: PlacedPrimitiveMatrix) -> bool:
     # This is just some code to get you started, but you don't have to follow it exactly
 
+    colliding = False
     # TODO check if the two primitives are colliding
     if isinstance(a.primitive, Circle) and isinstance(b.primitive, Circle):
-        return check_circle(a, b)
+        colliding = check_circle(a, b)
     if isinstance(a.primitive, Rectangle) and isinstance(b.primitive, Circle):
-        ...
+        colliding = check_rectangle_circle(a, b)
     if isinstance(a.primitive, Rectangle) and isinstance(b.primitive, Rectangle):
-        ...
-    ...
+        colliding = check_rectangle_rectangle(a, b)
+    
 
     # TODO return the status of the collision
     # for now let's return a random guess
-    return random.uniform(0, 1) > 0.5
+    return colliding
