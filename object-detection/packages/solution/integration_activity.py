@@ -1,9 +1,10 @@
 from typing import Tuple
+import numpy as np
 
 
 def DT_TOKEN() -> str:
     # TODO: change this to your duckietown token
-    dt_token = "PUT_YOUR_TOKEN_HERE"
+    dt_token = "dt2-5wjpkjyNDVkVSh5zZ1XnnAMCF5H6Rwyf1KCAFsNcQFXzuR62haMtECrUjoRbxFw3rnYGamyDREMNdGJuS-43dzqWFnWd8KBa1yev1g3UKnzVxZkkTbfdqoJj54FagXAjWWdm5cSHehNVPBpF8z3H"
     return dt_token
 
 
@@ -16,7 +17,7 @@ def MODEL_NAME() -> str:
 def NUMBER_FRAMES_SKIPPED() -> int:
     # TODO: change this number to drop more frames
     # (must be a positive integer)
-    return 0
+    return 10
 
 
 def filter_by_classes(pred_class: int) -> bool:
@@ -37,7 +38,8 @@ def filter_by_classes(pred_class: int) -> bool:
     # Right now, this returns True for every object's class
     # TODO: Change this to only return True for duckies!
     # In other words, returning False means that this prediction is ignored.
-    return True
+    if pred_class == 0: return True
+    return False
 
 
 def filter_by_scores(score: float) -> bool:
@@ -52,6 +54,13 @@ def filter_by_scores(score: float) -> bool:
 
 
 def filter_by_bboxes(bbox: Tuple[int, int, int, int]) -> bool:
+    area = np.abs(bbox[2] - bbox[0]) * np.abs(bbox[1] - bbox[3])
+
+    width = 416
+
+    if (bbox[2] < 200 and bbox[3] < 200): return False
+    if area < 1000: return False
+
     """
     Args:
         bbox: is the bounding box of a prediction, in xyxy format
